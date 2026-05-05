@@ -4,11 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Analisis y Metricas Verssato</title>
-<!-- Configuración para iPhone / Web App -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Verssato KPI">
-    <link rel="apple-touch-icon" href="https://i.imgur.com/upCEy1O.jpeg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Verssato KPI">
+<link rel="apple-touch-icon" href="https://i.imgur.com/upCEy1O.jpeg">
 
 <link rel="icon" href="https://i.imgur.com/upCEy1O.jpeg">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
@@ -97,6 +96,7 @@ h2 {
     padding-bottom:10px;
 }
 
+/* RESPONSIVE SELECT */
 select {
     width:100%;
     padding:12px;
@@ -112,9 +112,17 @@ select:focus {
     box-shadow:0 0 0 3px rgba(230,0,0,0.1);
 }
 
+/* 🔥 CONTENEDOR SCROLL TABLA */
+.table-container{
+    width:100%;
+    overflow-x:auto;
+}
+
+/* TABLA */
 table {
     width:100%;
     border-collapse:collapse;
+    min-width:600px; /* 🔥 evita romper columnas */
 }
 
 th, td {
@@ -141,6 +149,22 @@ tr:hover {
 .btn:hover {
     transform:scale(1.2);
 }
+
+/* 🔥 BADGES NIVEL */
+.badge {
+    display:inline-block;
+    margin-top:5px;
+    padding:4px 8px;
+    border-radius:8px;
+    font-size:11px;
+    font-weight:600;
+    color:white;
+}
+
+.badge-debil { background:#ff3b30; }
+.badge-normal { background:#ff9500; }
+.badge-bueno { background:#34c759; }
+.badge-elite { background:#007aff; }
 
 /* MODAL */
 #modal {
@@ -232,23 +256,25 @@ tr:hover {
         <option value="TODAS">Todas las tiendas</option>
     </select>
 
+    <div class="table-container">
     <table>
         <thead>
             <tr>
+                <th>No.</th>
                 <th>Tienda</th>
                 <th>Vendedor</th>
-                <th>Efectividad Grupal</th>
-                <th>Efectividad Individual</th>
-                <th>📊</th>
+                <th>Grupal</th>
+                <th>Individual</th>
+                <th>Reporte</th>
             </tr>
         </thead>
         <tbody id="tablaBody"></tbody>
     </table>
+    </div>
 </div>
 
 <div id="modal">
     <div class="modal-content">
-
         <div class="modal-box">
             <h4>📊 Análisis</h4>
             <p id="analisis"></p>
@@ -268,12 +294,12 @@ const URL = "https://script.google.com/macros/s/AKfycbz5485n2iuF6qQ6aFy0vzw1sIU2
 
 let datosGlobal = [];
 
-// 🔥 SCORE
+// SCORE
 function calcularScore(d){
     return (parseFloat(d.conversionGrupal) + parseFloat(d.conversionIndividual)) / 2;
 }
 
-// 🎨 COLOR
+// COLOR
 function getColor(score){
     if(score < 45) return "#ff3b30";
     if(score < 65) return "#ff9500";
@@ -281,15 +307,24 @@ function getColor(score){
     return "#007aff";
 }
 
-// 🚨 ALERTAS
+// ALERTAS
 function getAlerta(d){
     const cg = parseFloat(d.conversionGrupal);
     const ci = parseFloat(d.conversionIndividual);
 
     if(cg < 40 && ci < 50) return "⚠ CRITICO";
-    if(cg >= 60 && ci < 50) return "💰 PIERDE DINERO";
-    if(cg < 40 && ci >= 65) return "🎯 NO CIERRA";
-    if(cg >= 75 && ci >= 85) return "🔥 ELITE";
+    if(cg >= 60 && ci < 50) return "💰";
+    if(cg < 40 && ci >= 65) return "🎯";
+    if(cg >= 75 && ci >= 85) return "🔥";
+    return "";
+}
+
+// BADGE NIVEL
+function getBadge(nivel){
+    if(nivel === "VENTA DEBIL") return '<span class="badge badge-debil">DEBIL</span>';
+    if(nivel === "VENTA NORMAL") return '<span class="badge badge-normal">NORMAL</span>';
+    if(nivel === "BUEN VENDEDOR") return '<span class="badge badge-bueno">BUENO</span>';
+    if(nivel === "VENDEDOR ELITE") return '<span class="badge badge-elite">ELITE</span>';
     return "";
 }
 
@@ -342,27 +377,36 @@ document.getElementById("filtroTienda").addEventListener("change", function(){
     }
 });
 
-// 🏆 NUEVO RANKING
+// RANKING
 function rankear(data){
     return data.sort((a,b)=>{
         return calcularScore(b) - calcularScore(a);
     });
 }
 
-// 📊 TABLA PRO
+// TABLA
 function renderTabla(data){
     const tbody = document.getElementById("tablaBody");
     tbody.innerHTML = "";
 
-    data.forEach(d=>{
+    data.forEach((d, index)=>{
         const score = calcularScore(d);
         const color = getColor(score);
         const alerta = getAlerta(d);
 
+        let medal = "";
+        if(index === 0) medal = "🥇";
+        else if(index === 1) medal = "🥈";
+        else if(index === 2) medal = "🥉";
+
         const row = `
         <tr style="border-left:6px solid ${color};">
+            <td>${medal || index+1}</td>
             <td>${d.tienda}</td>
-            <td>${d.vendedor} ${alerta}</td>
+            <td>
+                ${d.vendedor} ${alerta}<br>
+                ${getBadge(d.nivel)}
+            </td>
             <td>${d.conversionGrupal}</td>
             <td>${d.conversionIndividual}</td>
             <td class="btn" onclick='verDetalle(${JSON.stringify(d)})'>📊</td>
