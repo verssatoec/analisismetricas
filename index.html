@@ -96,7 +96,6 @@ h2 {
     padding-bottom:10px;
 }
 
-/* RESPONSIVE SELECT */
 select {
     width:100%;
     padding:12px;
@@ -112,17 +111,15 @@ select:focus {
     box-shadow:0 0 0 3px rgba(230,0,0,0.1);
 }
 
-/* 🔥 CONTENEDOR SCROLL TABLA */
 .table-container{
     width:100%;
     overflow-x:auto;
 }
 
-/* TABLA */
 table {
     width:100%;
     border-collapse:collapse;
-    min-width:600px; /* 🔥 evita romper columnas */
+    min-width:600px;
 }
 
 th, td {
@@ -150,7 +147,6 @@ tr:hover {
     transform:scale(1.2);
 }
 
-/* 🔥 BADGES NIVEL */
 .badge {
     display:inline-block;
     margin-top:5px;
@@ -166,7 +162,6 @@ tr:hover {
 .badge-bueno { background:#34c759; }
 .badge-elite { background:#007aff; }
 
-/* MODAL */
 #modal {
     display:none;
     position:fixed;
@@ -190,7 +185,6 @@ tr:hover {
     animation:scaleIn 0.3s ease;
 }
 
-/* CAJAS */
 .modal-box {
     background: rgba(230, 0, 0, 0.08);
     border: 1px solid rgba(230, 0, 0, 0.2);
@@ -224,7 +218,6 @@ tr:hover {
     cursor:pointer;
 }
 
-/* ANIMACIONES */
 @keyframes fadeIn {
     from {opacity:0;}
     to {opacity:1;}
@@ -243,8 +236,8 @@ tr:hover {
     <div class="login">
         <img src="https://i.imgur.com/aOSGzTG.png">
         <h2>ANALISIS DE METRICAS</h2>
-        <input type="text" id="user" placeholder="Ingrese su Usuario de Supervisor">
-        <input type="password" id="pass" placeholder="Ingrese su Contraseña">
+        <input type="text" id="user">
+        <input type="password" id="pass">
         <button onclick="login()">ENTRAR AL PANEL</button>
     </div>
 </div>
@@ -290,16 +283,26 @@ tr:hover {
 </div>
 
 <script>
-const URL = "https://script.google.com/macros/s/AKfycbz5485n2iuF6qQ6aFy0vzw1sIU2_e5IUqOvl_FVyUoboAxjp9GPPNoltEvMY8zHZa2n4Q/exec";
+const URL = "https://script.google.com/macros/s/AKfycbzIXqZreKZLX5MzfBRO9kigxjKOH7b-f-_eIStuLYM7tCKakcrktJBqOyGD7CE0PRJ-gg/exec";
 
 let datosGlobal = [];
 
-// SCORE
+// 🔥 NUEVO FILTRO ÚLTIMO REGISTRO
+function obtenerUltimosRegistros(data){
+    const mapa = {};
+    data.forEach(d=>{
+        const key = d.vendedor;
+        if(!mapa[key] || new Date(d.fecha) > new Date(mapa[key].fecha)){
+            mapa[key] = d;
+        }
+    });
+    return Object.values(mapa);
+}
+
 function calcularScore(d){
     return (parseFloat(d.conversionGrupal) + parseFloat(d.conversionIndividual)) / 2;
 }
 
-// COLOR
 function getColor(score){
     if(score < 45) return "#ff3b30";
     if(score < 65) return "#ff9500";
@@ -307,7 +310,6 @@ function getColor(score){
     return "#007aff";
 }
 
-// ALERTAS
 function getAlerta(d){
     const cg = parseFloat(d.conversionGrupal);
     const ci = parseFloat(d.conversionIndividual);
@@ -319,7 +321,6 @@ function getAlerta(d){
     return "";
 }
 
-// BADGE NIVEL
 function getBadge(nivel){
     if(nivel === "VENTA DEBIL") return '<span class="badge badge-debil">DEBIL</span>';
     if(nivel === "VENTA NORMAL") return '<span class="badge badge-normal">NORMAL</span>';
@@ -328,7 +329,6 @@ function getBadge(nivel){
     return "";
 }
 
-// LOGIN
 function login(){
     const u = document.getElementById("user").value;
     const p = document.getElementById("pass").value;
@@ -342,18 +342,18 @@ function login(){
     }
 }
 
-// DATA
 function cargarDatos(){
     fetch(URL)
     .then(res => res.json())
     .then(data => {
         datosGlobal = data;
         cargarTiendas(data);
-        renderTabla(rankear(data));
+
+        const filtrados = obtenerUltimosRegistros(data);
+        renderTabla(rankear(filtrados));
     });
 }
 
-// TIENDAS
 function cargarTiendas(data){
     const tiendas = [...new Set(data.map(d => d.tienda))];
     const select = document.getElementById("filtroTienda");
@@ -366,25 +366,26 @@ function cargarTiendas(data){
     });
 }
 
-// FILTRO
 document.getElementById("filtroTienda").addEventListener("change", function(){
     const valor = this.value;
 
     if(valor === "TODAS"){
-        renderTabla(rankear(datosGlobal));
+        const filtrados = obtenerUltimosRegistros(datosGlobal);
+        renderTabla(rankear(filtrados));
     } else {
-        renderTabla(datosGlobal.filter(d => d.tienda === valor));
+        const filtrados = obtenerUltimosRegistros(
+            datosGlobal.filter(d => d.tienda === valor)
+        );
+        renderTabla(rankear(filtrados));
     }
 });
 
-// RANKING
 function rankear(data){
     return data.sort((a,b)=>{
         return calcularScore(b) - calcularScore(a);
     });
 }
 
-// TABLA
 function renderTabla(data){
     const tbody = document.getElementById("tablaBody");
     tbody.innerHTML = "";
@@ -416,7 +417,6 @@ function renderTabla(data){
     });
 }
 
-// MODAL
 function verDetalle(d){
     document.getElementById("analisis").innerText = d.analisis;
     document.getElementById("consejos").innerText = d.consejos;
