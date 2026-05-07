@@ -185,6 +185,19 @@ tr:hover {
     animation:scaleIn 0.3s ease;
 }
 
+.modal-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:15px;
+    margin-top:15px;
+}
+
+@media(max-width:700px){
+    .modal-grid{
+        grid-template-columns:1fr;
+    }
+}
+
 .modal-box {
     background: rgba(230, 0, 0, 0.08);
     border: 1px solid rgba(230, 0, 0, 0.2);
@@ -418,8 +431,78 @@ function renderTabla(data){
 }
 
 function verDetalle(d){
-    document.getElementById("analisis").innerText = d.analisis;
-    document.getElementById("consejos").innerText = d.consejos;
+
+    const historial = datosGlobal
+    .filter(x => x.vendedor === d.vendedor)
+    .sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+
+    const actual = historial[0];
+    const anterior = historial[1];
+
+    let resumen = "";
+
+    const actualCG = parseFloat(actual.conversionGrupal);
+    const actualCI = parseFloat(actual.conversionIndividual);
+
+    if(actualCG >= 75 && actualCI >= 85){
+        resumen = "El vendedor mantiene un desempeño elite tanto en cierre como en aprovechamiento comercial.";
+    }
+    else if(actualCG >= 60 && actualCI >= 65){
+        resumen = "El vendedor presenta un rendimiento sólido y estable en métricas comerciales.";
+    }
+    else if(actualCG < 40){
+        resumen = "El vendedor presenta problemas importantes en conversión y cierre comercial.";
+    }
+    else{
+        resumen = "El vendedor mantiene un desempeño intermedio con oportunidades claras de mejora.";
+    }
+
+    document.querySelector(".modal-content").innerHTML = `
+
+        <div class="modal-grid">
+
+            <div class="modal-box">
+                <h4>📊 Resumen Ejecutivo</h4>
+                <p>${resumen}</p>
+            </div>
+
+            <div class="modal-box">
+                <h4>📈 Comparativa KPI</h4>
+
+                <p>
+                <strong>Conversión Grupal:</strong><br>
+                Actual: ${actual.conversionGrupal}<br>
+                Anterior: ${anterior ? anterior.conversionGrupal : "Sin registro"}
+                </p>
+
+                <br>
+
+                <p>
+                <strong>Conversión Individual:</strong><br>
+                Actual: ${actual.conversionIndividual}<br>
+                Anterior: ${anterior ? anterior.conversionIndividual : "Sin registro"}
+                </p>
+            </div>
+
+            <div class="modal-box">
+                <h4>📦 Datos Operativos</h4>
+
+                <p>👥 Grupos: ${actual.grupos}</p>
+                <p>👤 Personas: ${actual.personas}</p>
+                <p>🧾 Ventas: ${actual.ventas}</p>
+                <p>📦 Productos: ${actual.productos}</p>
+            </div>
+
+            <div class="modal-box">
+                <h4>🚀 Consejos</h4>
+                <p>${actual.consejos.replace(/\n/g,"<br>")}</p>
+            </div>
+
+        </div>
+
+        <button onclick="cerrarModal()">Cerrar</button>
+    `;
+
     document.getElementById("modal").style.display = "flex";
 }
 
