@@ -262,6 +262,21 @@ tr:hover {
         <option value="TODAS">Todas las tiendas</option>
     </select>
 
+    <button onclick="abrirReporteSemanal()" style="
+width:100%;
+padding:14px;
+border:none;
+border-radius:12px;
+background:#111;
+color:white;
+font-weight:bold;
+cursor:pointer;
+margin-bottom:20px;
+font-size:15px;
+">
+Reporte Semanal por Tienda
+</button>
+
     <div class="table-container">
     <table>
         <thead>
@@ -293,6 +308,85 @@ tr:hover {
 
         <button onclick="cerrarModal()">Cerrar</button>
     </div>
+</div>
+
+<div id="modalSemanal" style="
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.7);
+justify-content:center;
+align-items:center;
+z-index:999;
+padding:15px;
+box-sizing:border-box;
+">
+
+<div style="
+background:white;
+width:100%;
+max-width:900px;
+max-height:90vh;
+overflow-y:auto;
+border-radius:20px;
+padding:25px;
+animation:scaleIn 0.3s ease;
+">
+
+<h2 style="margin-top:0;">REPORTE SEMANAL NACIONAL</h2>
+
+<div class="modal-grid">
+
+<div class="modal-box">
+<h4>TOP 3 SEMANAL</h4>
+<p id="topSemanal"></p>
+</div>
+
+<div class="modal-box">
+<h4>VENDEDORES CRÍTICOS</h4>
+<p id="criticosSemana"></p>
+</div>
+
+<div class="modal-box">
+<h4>MAYOR MEJORA DE VENDEDOR</h4>
+<p id="mejoraSemana"></p>
+</div>
+
+<div class="modal-box">
+<h4>VENDEDOR MÁS CONSISTENTE</h4>
+<p id="consistenteSemana"></p>
+</div>
+
+<div class="modal-box">
+<h4>MEJOR TIENDA NACIONAL</h4>
+<p id="mejorTienda"></p>
+</div>
+
+<div class="modal-box">
+<h4>PROMEDIO NACIONAL</h4>
+<p id="promedioNacional"></p>
+</div>
+
+</div>
+
+<button onclick="cerrarReporteSemanal()" style="
+margin-top:20px;
+padding:12px 20px;
+border:none;
+border-radius:10px;
+background:#e60000;
+color:white;
+font-weight:bold;
+cursor:pointer;
+width:100%;
+">
+Cerrar Reporte
+</button>
+
+</div>
 </div>
 
 <script>
@@ -327,10 +421,10 @@ function getAlerta(d){
     const cg = parseFloat(d.conversionGrupal);
     const ci = parseFloat(d.conversionIndividual);
 
-    if(cg < 40 && ci < 50) return "⚠ CRITICO";
-    if(cg >= 60 && ci < 50) return "💰";
-    if(cg < 40 && ci >= 65) return "🎯";
-    if(cg >= 75 && ci >= 85) return "🔥";
+    if(cg < 40 && ci < 50) return "CRITICO";
+    if(cg >= 60 && ci < 50) return "";
+    if(cg < 40 && ci >= 65) return "";
+    if(cg >= 75 && ci >= 85) return "";
     return "";
 }
 
@@ -504,10 +598,157 @@ function verDetalle(d){
     `;
 
     document.getElementById("modal").style.display = "flex";
+    document.body.style.overflow = "hidden";
 }
 
 function cerrarModal(){
     document.getElementById("modal").style.display = "none";
+    document.body.style.overflow = "auto";
+}
+
+function abrirReporteSemanal(){
+
+    const hace7Dias = new Date();
+    hace7Dias.setDate(hace7Dias.getDate() - 7);
+
+    const semana = datosGlobal.filter(d=>{
+        return new Date(d.fecha) >= hace7Dias;
+    });
+
+    // 🔥 SCORE
+    semana.forEach(d=>{
+        d.score = calcularScore(d);
+    });
+
+    // 🥇 TOP 3
+    const top = [...semana]
+    .sort((a,b)=> b.score - a.score)
+    .slice(0,3);
+
+    document.getElementById("topSemanal").innerHTML = top.map((d,i)=>
+        `${i+1}. <strong>${d.vendedor}</strong> (${d.score.toFixed(1)} pts)`
+    ).join("<br><br>");
+
+    // CRITICOS
+    const criticos = semana.filter(d=>
+        parseFloat(d.conversionGrupal) < 40 &&
+        parseFloat(d.conversionIndividual) < 50
+    );
+
+    document.getElementById("criticosSemana").innerHTML =
+    criticos.length > 0
+    ? criticos.slice(0,5).map(d=>
+        `⚠ ${d.vendedor} (${d.tienda})`
+      ).join("<br><br>")
+    : "No existen vendedores críticos esta semana.";
+
+    // 📈 MAYOR MEJORA
+    const mejoras = {};
+
+    semana.forEach(d=>{
+        if(!mejoras[d.vendedor]){
+            mejoras[d.vendedor] = [];
+        }
+        mejoras[d.vendedor].push(d);
+    });
+
+    let mejorNombre = "";
+    let mejorCambio = -999;
+
+    Object.keys(mejoras).forEach(vendedor=>{
+
+        const historial = mejoras[vendedor]
+        .sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+
+        if(historial.length >= 2){
+
+            const primero = calcularScore(historial[0]);
+            const ultimo = calcularScore(historial[historial.length-1]);
+
+            const mejora = ultimo - primero;
+
+            if(mejora > mejorCambio){
+                mejorCambio = mejora;
+                mejorNombre = vendedor;
+            }
+        }
+    });
+
+    document.getElementById("mejoraSemana").innerHTML =
+    mejorNombre
+    ? `<strong>${mejorNombre}</strong><br>Mejoró ${mejorCambio.toFixed(1)} puntos`
+    : "Sin suficientes registros.";
+
+    // 🔥 MÁS CONSISTENTE
+    let consistente = "";
+    let mejorPromedio = 0;
+
+    Object.keys(mejoras).forEach(vendedor=>{
+
+        const historial = mejoras[vendedor];
+
+        if(historial.length >= 3){
+
+            const promedio =
+            historial.reduce((acc,d)=> acc + calcularScore(d),0)
+            / historial.length;
+
+            if(promedio > mejorPromedio){
+                mejorPromedio = promedio;
+                consistente = vendedor;
+            }
+        }
+    });
+
+    document.getElementById("consistenteSemana").innerHTML =
+    consistente
+    ? `<strong>${consistente}</strong><br>Promedio: ${mejorPromedio.toFixed(1)} pts`
+    : "Sin suficientes registros.";
+
+    // 🏪 MEJOR TIENDA
+    const tiendas = {};
+
+    semana.forEach(d=>{
+
+        if(!tiendas[d.tienda]){
+            tiendas[d.tienda] = [];
+        }
+
+        tiendas[d.tienda].push(calcularScore(d));
+    });
+
+    let mejorTienda = "";
+    let scoreTienda = 0;
+
+    Object.keys(tiendas).forEach(tienda=>{
+
+        const promedio =
+        tiendas[tienda].reduce((a,b)=> a+b,0)
+        / tiendas[tienda].length;
+
+        if(promedio > scoreTienda){
+            scoreTienda = promedio;
+            mejorTienda = tienda;
+        }
+    });
+
+    document.getElementById("mejorTienda").innerHTML =
+    `<strong>${mejorTienda}</strong><br>${scoreTienda.toFixed(1)} pts promedio`;
+
+    // 📊 PROMEDIO NACIONAL
+    const promedioNacional =
+    semana.reduce((acc,d)=> acc + calcularScore(d),0)
+    / semana.length;
+
+    document.getElementById("promedioNacional").innerHTML =
+    `<strong>${promedioNacional.toFixed(1)} pts</strong><br>
+    Rendimiento promedio nacional semanal`;
+
+    document.getElementById("modalSemanal").style.display = "flex";
+}
+
+function cerrarReporteSemanal(){
+    document.getElementById("modalSemanal").style.display = "none";
 }
 </script>
 
